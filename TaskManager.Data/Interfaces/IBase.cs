@@ -10,6 +10,6 @@ namespace TaskManager.Data.Interfaces
         Task<OperationResult<TModel>> Remove(TEntity entity);
         Task<OperationResult<List<TModel>>> GetAll();
         Task<OperationResult<List<TModel>>> GetAll(Expression<Func<TEntity, bool>> filter);
-        Task<OperationResult<TModel>> GetEntityBy(TType Id);
+        Task<OperationResult<TModel>> GetEntityBy(int Id);
     }
 }

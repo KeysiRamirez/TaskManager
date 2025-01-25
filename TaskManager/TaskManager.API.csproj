@@ -12,7 +12,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\TaskManager.Data\TaskManager.Data.csproj" />
-    <ProjectReference Include="..\TaskManager.Web\TaskManager.Web.csproj" />
   </ItemGroup>
 
 </Project>

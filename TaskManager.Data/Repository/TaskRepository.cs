@@ -22,21 +22,21 @@ namespace TaskManager.Data.Repository
             _taskManagercontext = taskManagerContext;
             _logger = logger;
         }
-        public async Task<OperationResult<List<TaskModel>>> GetAll()
+        public async Task<OperationResult<List<TaskModel<string>>>> GetAll()
         {
-            OperationResult<List<TaskModel>> operationResult = new OperationResult<List<TaskModel>>();
+            OperationResult<List<TaskModel<string>>> operationResult = new OperationResult<List<TaskModel<string>>>();
 
             try
             {
                 var tasks = await _taskManagercontext.Task
-                    /*.Where(db => db.TaskStatus == false)*/
                     .OrderByDescending(db => db.TaskId)
-                    .Select(db => new TaskModel()
+                    .Select(db => new TaskModel<string>()
                     {
                         TaskId = db.TaskId,
                         TaskDescription = db.TaskDescription,
                         DueDate = db.DueDate,
-                        TaskStatus = db.TaskStatus
+                        TaskStatus = db.TaskStatus,
+                        AdditionalData = db.AdditionalData
                     }).ToListAsync();
 
                 operationResult.Result = tasks;
@@ -52,20 +52,21 @@ namespace TaskManager.Data.Repository
             return operationResult;
         }
 
-        public async Task<OperationResult<List<TaskModel>>> GetAll(Expression<Func<TaskEntity, bool>> filter)
+        public async Task<OperationResult<List<TaskModel<string>>>> GetAll(Expression<Func<TaskEntity<string>, bool>> filter)
         {
-            OperationResult<List<TaskModel>> operationResult = new OperationResult<List<TaskModel>>();
+            OperationResult<List<TaskModel<string>>> operationResult = new OperationResult<List<TaskModel<string>>>();
 
             try
             {
                 var tasks = await _taskManagercontext.Task
                     .Where(filter)
-                    .Select(db => new TaskModel()
+                    .Select(db => new TaskModel<string>()
                     {
                         TaskId = db.TaskId,
                         TaskDescription = db.TaskDescription,
                         DueDate = db.DueDate,
-                        TaskStatus = db.TaskStatus
+                        TaskStatus = db.TaskStatus,
+                        AdditionalData = db.AdditionalData
                     }).ToListAsync();
 
                 operationResult.Result = tasks;
@@ -81,9 +82,9 @@ namespace TaskManager.Data.Repository
             return operationResult;
         }
 
-        public async Task<OperationResult<TaskModel>> GetEntityBy(int TaskId)
+        public async Task<OperationResult<TaskModel<string>>> GetEntityBy(int TaskId)
         {
-            OperationResult<TaskModel> operationResult = new OperationResult<TaskModel>();
+            OperationResult<TaskModel<string>> operationResult = new OperationResult<TaskModel<string>>();
             try
             {
                 var tasks = await _taskManagercontext.Task.FindAsync(TaskId);
@@ -102,12 +103,13 @@ namespace TaskManager.Data.Repository
                     return operationResult;
                 }
 
-                operationResult.Result = new TaskModel()
+                operationResult.Result = new TaskModel<string>()
                 {
                     TaskId = tasks.TaskId,
                     TaskDescription = tasks.TaskDescription,
                     DueDate = tasks.DueDate,
-                    TaskStatus = tasks.TaskStatus
+                    TaskStatus = tasks.TaskStatus,
+                    AdditionalData = tasks.AdditionalData
                 };
 
             }
@@ -122,9 +124,9 @@ namespace TaskManager.Data.Repository
 
         }
 
-        public async Task<OperationResult<TaskModel>> Remove(TaskEntity entity)
+        public async Task<OperationResult<TaskModel<string>>> Remove(TaskEntity<string> entity)
         {
-            OperationResult<TaskModel> operationResult = new OperationResult<TaskModel>();
+            OperationResult<TaskModel<string>> operationResult = new OperationResult<TaskModel<string>>();
             try
             {
                 var tasks = await _taskManagercontext.Task.FindAsync(entity.TaskId);
@@ -151,9 +153,9 @@ namespace TaskManager.Data.Repository
             return operationResult;
         }
 
-        public async Task<OperationResult<TaskModel>> Save(TaskEntity entity)
+        public async Task<OperationResult<TaskModel<string>>> Save(TaskEntity<string> entity)
         {
-            OperationResult<TaskModel> operationResult = new OperationResult<TaskModel>();
+            OperationResult<TaskModel<string>> operationResult = new OperationResult<TaskModel<string>>();
             try
             {
                 var tasks = await _taskManagercontext.Task.FindAsync(entity.TaskId);
@@ -172,7 +174,6 @@ namespace TaskManager.Data.Repository
                     return operationResult;
                 }
 
-                // Evitar duplicar el ID
                 var taskIdExist = await _taskManagercontext.Task.AnyAsync(task => task.TaskId == entity.TaskId);
 
                 if (taskIdExist)
@@ -197,9 +198,9 @@ namespace TaskManager.Data.Repository
             return operationResult;
         }
 
-        public async Task<OperationResult<TaskModel>> Update(TaskEntity entity)
+        public async Task<OperationResult<TaskModel<string>>> Update(TaskEntity<string> entity)
         {
-            OperationResult<TaskModel> operationResult = new OperationResult<TaskModel>();
+            OperationResult<TaskModel<string>> operationResult = new OperationResult<TaskModel<string>>();
 
             try
             {
@@ -233,6 +234,7 @@ namespace TaskManager.Data.Repository
                 task.TaskDescription = entity.TaskDescription;
                 task.DueDate = entity.DueDate;
                 task.TaskStatus = entity.TaskStatus;
+                task.AdditionalData = entity.AdditionalData;
 
                 // Guardar los cambios en la base de datos
                 _taskManagercontext.Task.Update(task);
@@ -241,12 +243,13 @@ namespace TaskManager.Data.Repository
                 // Asignar los resultados de la actualización
                 operationResult.Message = "La tarea ha sido actualizada correctamente.";
                 operationResult.Success = true;
-                operationResult.Result = new TaskModel
+                operationResult.Result = new TaskModel<string>
                 {
                     TaskId = task.TaskId,
                     TaskDescription = task.TaskDescription,
                     DueDate = task.DueDate,
-                    TaskStatus = task.TaskStatus
+                    TaskStatus = task.TaskStatus,
+                    AdditionalData = task.AdditionalData
                 };
             }
             catch (Exception ex)

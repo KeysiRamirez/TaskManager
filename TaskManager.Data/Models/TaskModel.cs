@@ -7,12 +7,12 @@ using System.Threading.Tasks;
 
 namespace TaskManager.Data.Models
 {
-    public class TaskModel
+    public class TaskModel<TType>
     {
         public int TaskId { get; set; }
         public string TaskDescription { get; set; }
         public DateTime DueDate { get; set; }
         public bool TaskStatus { get; set; }
-       // public T AdditionalData { get; set; }
+        public TType AdditionalData { get; set; }
     }
 }

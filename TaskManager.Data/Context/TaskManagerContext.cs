@@ -16,7 +16,7 @@ namespace TaskManager.Data.Context
         }
 
         #region DbSets
-        public DbSet<TaskEntity> Task { get; set; } 
+        public DbSet<TaskEntity<string>> Task { get; set; } 
 
         #endregion
     }

@@ -11,34 +11,34 @@ using TaskManager.Data.OperationResult;
 
 namespace TaskManager.Data.Interfaces
 {
-    public interface ITask : IBase<TaskEntity, int, TaskModel>
+    public interface ITask : IBase<TaskEntity<string>, int, TaskModel<string>>
     {
-        public Task<OperationResult<List<TaskModel>>> GetAll()
+        public Task<OperationResult<List<TaskModel<string>>>> GetAll()
         {
             throw new NotImplementedException();
         }
 
-        public Task<OperationResult<List<TaskModel>>> GetAll(Expression<Func<TaskEntity, bool>> filter)
+        public Task<OperationResult<List<TaskModel<string>>>> GetAll(Expression<Func<TaskEntity<string>, bool>> filter)
         {
             throw new NotImplementedException();
         }
 
-        public Task<OperationResult<TaskModel>> GetEntityBy(int Id)
+        public Task<OperationResult<TaskModel<string>>> GetEntityBy(int Id)
         {
             throw new NotImplementedException();
         }
 
-        public Task<OperationResult<TaskModel>> Remove(TaskEntity entity)
+        public Task<OperationResult<TaskModel<string>>> Remove(TaskEntity<string> entity)
         {
             throw new NotImplementedException();
         }
 
-        public Task<OperationResult<TaskModel>> Save(TaskEntity entity)
+        public Task<OperationResult<TaskModel<string>>> Save(TaskEntity<string> entity)
         {
             throw new NotImplementedException();
         }
 
-        public Task<OperationResult<TaskModel>> Update(TaskEntity entity)
+        public Task<OperationResult<TaskModel<string>>> Update(TaskEntity<string> entity)
         {
             throw new NotImplementedException();
         }

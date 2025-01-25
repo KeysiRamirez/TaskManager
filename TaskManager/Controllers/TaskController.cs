@@ -20,7 +20,7 @@ namespace TaskManager.API.Controllers
         [HttpGet("GetTask")]
         public async Task<IActionResult> Get()
         {
-            OperationResult<List<TaskModel>> result = await _task.GetAll();
+            OperationResult<List<TaskModel<string>>> result = await _task.GetAll();
 
             if (!result.Success)
             {
@@ -35,7 +35,7 @@ namespace TaskManager.API.Controllers
         public async Task<IActionResult> Get(int taskId)
         {
             
-            var result = new OperationResult<TaskModel>();
+            var result = new OperationResult<TaskModel<string>>();
 
             if (taskId <= 0)
             {
@@ -63,20 +63,21 @@ namespace TaskManager.API.Controllers
 
         // POST api/<TaskController>
         [HttpPost("SaveTask")]
-        public async Task<IActionResult> Post([FromBody] TaskEntity entity)
+        public async Task<IActionResult> Post([FromBody] TaskEntity<string> entity)
         {
-            OperationResult<TaskModel> result = null;
+            OperationResult<TaskModel<string>> result = null;
 
             if (!ModelState.IsValid)
             {
                 return BadRequest(ModelState);
             }
 
-            TaskEntity newTask = new TaskEntity()
+            TaskEntity<string> newTask = new TaskEntity<string>()
             {
                 TaskDescription = entity.TaskDescription,
                 DueDate = entity.DueDate,
-                TaskStatus = entity.TaskStatus
+                TaskStatus = entity.TaskStatus,
+                AdditionalData = entity.AdditionalData
             };
 
             if (entity.DueDate <= DateTime.Now)
@@ -101,7 +102,7 @@ namespace TaskManager.API.Controllers
 
         // PUT api/<TaskController>/5
         [HttpPut("UpdateTask")]
-        public async Task<IActionResult> Put([FromBody] TaskEntity entity)
+        public async Task<IActionResult> Put([FromBody] TaskEntity<string> entity)
         {
             if (!ModelState.IsValid)
             {
@@ -123,12 +124,13 @@ namespace TaskManager.API.Controllers
                 return BadRequest("La descripción no puede estar vacía.");
             }
 
-            TaskEntity newTask = new TaskEntity()
+            TaskEntity<string> newTask = new TaskEntity<string>()
             {
                 TaskId = entity.TaskId,  // Asegurando que el ID se pase correctamente
                 TaskDescription = entity.TaskDescription,
                 DueDate = entity.DueDate,
-                TaskStatus = entity.TaskStatus
+                TaskStatus = entity.TaskStatus,
+                AdditionalData = entity.AdditionalData
             };
 
             var result = await _task.Update(newTask);
@@ -144,19 +146,20 @@ namespace TaskManager.API.Controllers
 
         // DELETE api/<TaskController>/5
         [HttpDelete("DeleteTask")]
-        public async Task<IActionResult> Delete([FromBody] TaskEntity entity)
+        public async Task<IActionResult> Delete([FromBody] TaskEntity<string> entity)
         {
-            OperationResult<TaskModel> result = null;
+            OperationResult<TaskModel<string>> result = null;
 
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            TaskEntity newTask = new TaskEntity()
+            TaskEntity<string> newTask = new TaskEntity<string>()
             {
                 TaskId = entity.TaskId,
                 TaskDescription = entity.TaskDescription,
                 DueDate = entity.DueDate,
-                TaskStatus = entity.TaskStatus
+                TaskStatus = entity.TaskStatus,
+                AdditionalData = entity.AdditionalData
             };
 
             result = await _task.Remove(newTask);

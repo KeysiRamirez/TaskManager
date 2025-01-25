@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace TaskManager.Data.Entities
 {
     [Table("Task")]
-    public sealed class TaskEntity
+    public sealed class TaskEntity<TType>
     {
         // default task status 
         public TaskEntity() 
@@ -24,7 +24,7 @@ namespace TaskManager.Data.Entities
         [Required(ErrorMessage = "La fecha no puede estar vacia")] public DateTime DueDate { get; set; }
 
         public bool TaskStatus { get; set; } 
-        //public T AdditionalData { get; set; }
+        public TType AdditionalData { get; set; }
 
     }
 }

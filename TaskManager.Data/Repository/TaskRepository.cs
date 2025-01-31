@@ -3,7 +3,10 @@ using Microsoft.EntityFrameworkCore.Query.SqlExpressions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Graph.Me.Planner.Plans.Item.Tasks;
 using Microsoft.Graph.Models;
+using Microsoft.VisualBasic;
+using System.Linq;
 using System.Linq.Expressions;
+using System.Threading.Tasks;
 using TaskManager.Data.Context;
 using TaskManager.Data.Entities;
 using TaskManager.Data.Interfaces;
@@ -22,6 +25,11 @@ namespace TaskManager.Data.Repository
             _taskManagercontext = taskManagerContext;
             _logger = logger;
         }
+
+        // Validate null fields
+        public delegate string ValidateNullInputs(TaskEntity<string> entity, List<TaskModel<string>> tasks);
+
+        //API methods
         public async Task<OperationResult<List<TaskModel<string>>>> GetAll()
         {
             OperationResult<List<TaskModel<string>>> operationResult = new OperationResult<List<TaskModel<string>>>();
@@ -82,72 +90,118 @@ namespace TaskManager.Data.Repository
             return operationResult;
         }
 
-        public async Task<OperationResult<TaskModel<string>>> GetEntityBy(int TaskId)
+        public async Task<OperationResult<TaskModel<string>>> GetEntityBy(int taskId)
         {
             OperationResult<TaskModel<string>> operationResult = new OperationResult<TaskModel<string>>();
+
             try
             {
-                var tasks = await _taskManagercontext.Task.FindAsync(TaskId);
-
-                if (tasks == null)
+                // Func para validar el ID
+                Func<int, string> validateTaskId = (id) =>
                 {
-                    operationResult.Success = false;
-                    operationResult.Message = "El ID no puede estar vacio.";
-                    return operationResult;
-                }
-
-                if (tasks.TaskId <= 0)
-                {
-                    operationResult.Success = false;
-                    operationResult.Message = "El ID no puede ser  menor o igual a 0";
-                    return operationResult;
-                }
-
-                operationResult.Result = new TaskModel<string>()
-                {
-                    TaskId = tasks.TaskId,
-                    TaskDescription = tasks.TaskDescription,
-                    DueDate = tasks.DueDate,
-                    TaskStatus = tasks.TaskStatus,
-                    AdditionalData = tasks.AdditionalData
+                    if (id <= 0) return "El ID no puede ser menor o igual a 0.";
+                    return null;
                 };
 
+                // Ejecutar validación del ID
+                string validationMessage = validateTaskId(taskId);
+                if (validationMessage != null)
+                {
+                    operationResult.Success = false;
+                    operationResult.Message = validationMessage;
+                    return operationResult;
+                }
+
+                // Buscar la tarea
+                var task = await _taskManagercontext.Task.FindAsync(taskId);
+
+                if (task == null)
+                {
+                    operationResult.Success = false;
+                    operationResult.Message = "No se encontró una tarea con el ID especificado.";
+                    return operationResult;
+                }
+
+                // Action para registrar log de éxito
+                Action<TaskEntity<string>> logTaskRetrieval = (retrievedTask) =>
+                {
+                    _logger.LogInformation($"Tarea obtenida: {retrievedTask.TaskId} - {retrievedTask.TaskDescription}");
+                };
+
+                // Mapear la entidad al modelo
+                operationResult.Result = new TaskModel<string>
+                {
+                    TaskId = task.TaskId,
+                    TaskDescription = task.TaskDescription,
+                    DueDate = task.DueDate,
+                    TaskStatus = task.TaskStatus,
+                    AdditionalData = task.AdditionalData
+                };
+
+                operationResult.Success = true;
+                operationResult.Message = "Tarea obtenida correctamente.";
+
+                // Ejecutar log
+                logTaskRetrieval(task);
             }
             catch (Exception ex)
             {
                 operationResult.Success = false;
-                operationResult.Message = $"Ocurrió un error obteniendo la tarea {TaskId}. {ex.Message}";
-                _logger.LogError(operationResult.Message, ex.ToString());
+                operationResult.Message = $"Ocurrió un error obteniendo la tarea {taskId}. {ex.Message}";
+                _logger.LogError(operationResult.Message, ex);
             }
 
             return operationResult;
-
         }
+
 
         public async Task<OperationResult<TaskModel<string>>> Remove(TaskEntity<string> entity)
         {
             OperationResult<TaskModel<string>> operationResult = new OperationResult<TaskModel<string>>();
+
             try
             {
-                var tasks = await _taskManagercontext.Task.FindAsync(entity.TaskId);
-
-                if (entity == null)
+                // Func para validar si la tarea existe
+                Func<TaskEntity<string>, Task<string>> validateTaskExistence = async (taskEntity) =>
                 {
-                    operationResult.Success = true;
-                    operationResult.Message = "El ID no puede estar vacio.";
+                    var task = await _taskManagercontext.Task.FindAsync(taskEntity.TaskId);
+                    return task == null ? "La tarea no existe o el ID es inválido." : null;
+                };
+
+                // Ejecutar la validación
+                string validationMessage = await validateTaskExistence(entity);
+                if (validationMessage != null)
+                {
+                    operationResult.Success = false;
+                    operationResult.Message = validationMessage;
                     return operationResult;
                 }
 
-                _taskManagercontext.Remove(tasks);
+                // Buscar la tarea en la base de datos
+                var taskToRemove = await _taskManagercontext.Task.FindAsync(entity.TaskId);
+
+                // Action para notificar la eliminación
+                Action<TaskEntity<string>> notifyTaskDeletion = (task) =>
+                {
+                    Console.WriteLine($"La tarea '{task.TaskDescription}' ha sido eliminada.");
+                };
+
+                // Eliminar la tarea
+                _taskManagercontext.Task.Remove(taskToRemove);
                 await _taskManagercontext.SaveChangesAsync();
 
-                operationResult.Message = "La tarea fue eliminada correctamente";
+                // Ejecutar la notificación
+                notifyTaskDeletion(taskToRemove);
+
+                // Asignar mensaje de éxito
+                operationResult.Success = true;
+                operationResult.Message = "La tarea fue eliminada correctamente.";
             }
             catch (Exception ex)
             {
                 operationResult.Success = false;
-                operationResult.Message = $"Ocurrió un error obteniendo los buses. {ex.Message}";
-                _logger.LogError(operationResult.Message, ex.ToString());
+                operationResult.Message = $"Ocurrió un error eliminando la tarea. {ex.Message}";
+                _logger.LogError(operationResult.Message, ex);
             }
 
             return operationResult;
@@ -156,6 +210,7 @@ namespace TaskManager.Data.Repository
         public async Task<OperationResult<TaskModel<string>>> Save(TaskEntity<string> entity)
         {
             OperationResult<TaskModel<string>> operationResult = new OperationResult<TaskModel<string>>();
+
             try
             {
                 var tasks = await _taskManagercontext.Task.FindAsync(entity.TaskId);
@@ -167,27 +222,54 @@ namespace TaskManager.Data.Repository
                     return operationResult;
                 }
 
-                if (string.IsNullOrEmpty(entity.TaskDescription))
+                // Validate if description or due date is null or before actual date
+                ValidateNullInputs validateDescriptionOrDueDates = (TaskEntity<string> task, List<TaskModel<string>> tasks) =>
                 {
-                    operationResult.Success = false;
-                    operationResult.Message = "Los campos de la tarea no pueden ser nulos";
-                    return operationResult;
-                }
+                    // validate if description is null
+                    if (string.IsNullOrWhiteSpace(task.TaskDescription))
+                    {
+                        return "La descripcion no puede ser nula";
+                    }
 
-                var taskIdExist = await _taskManagercontext.Task.AnyAsync(task => task.TaskId == entity.TaskId);
+                    if (task.DueDate <= DateTime.Now)
+                    {
+                        return "La fecha no puede ser antes de la fecha actual";
+                    }
 
-                if (taskIdExist)
-                {
-                    operationResult.Success = false;
-                    operationResult.Message = "El ID de tarea ya existe, intenta con otro.";
-                    return operationResult;
-                }
+                    var taskIdExist = tasks.Any(task => task.TaskId == entity.TaskId);
 
+                    if (taskIdExist)
+                    {
+                        return "El ID de tarea ya existe, intenta con otro.";
+                    }
+
+                    // If there's no any error
+                    return null;
+
+                };
+
+                // Agregar la tarea al contexto
                 _taskManagercontext.Add(entity);
                 await _taskManagercontext.SaveChangesAsync();
 
-                operationResult.Message = "La tarea fue agregada correctamente";
+                // Func para calcular días restantes
+                Func<TaskEntity<string>, int> calculateRemainingDays = task => (task.DueDate - DateTime.Now).Days;
+
+                // Action para notificar la creación de la tarea
+                Action<TaskEntity<string>> taskNotification = task =>
+                {
+                    Console.WriteLine($"Tarea creada: {task.TaskDescription}, se vence en {calculateRemainingDays(task)} días.");
+                };
+
+                // Ejecutar la acción
+                taskNotification(entity);
+
+                // Asignar mensaje de éxito
+                operationResult.Success = true;
+                operationResult.Message = $"La tarea fue agregada correctamente y se vence en {calculateRemainingDays(entity)} días.";
+            
             }
+
             catch (Exception ex)
             {
                 operationResult.Success = false;
@@ -204,7 +286,6 @@ namespace TaskManager.Data.Repository
 
             try
             {
-                // Validar si la entidad es nula o el ID es inválido antes de hacer cualquier operación
                 if (entity == null || entity.TaskId <= 0)
                 {
                     operationResult.Message = "La tarea no puede ser nula y debe tener un ID válido.";
@@ -212,7 +293,6 @@ namespace TaskManager.Data.Repository
                     return operationResult;
                 }
 
-                // Buscar la tarea en la base de datos
                 var task = await _taskManagercontext.Task.FindAsync(entity.TaskId);
 
                 if (task == null)
@@ -222,26 +302,49 @@ namespace TaskManager.Data.Repository
                     return operationResult;
                 }
 
-                // Validar si alguno de los campos necesarios es nulo
-                if (string.IsNullOrEmpty(entity.TaskDescription))
-                {
-                    operationResult.Message = "Algunos campos de la tarea no pueden ser nulos o vacíos.";
-                    operationResult.Success = false;
-                    return operationResult;
-                }
+                var tasks = await _taskManagercontext.Task.ToListAsync();
 
-                // Actualizar los campos de la tarea existente
+                ValidateNullInputs validateDescriptionOrDueDates = (TaskEntity<string> task, List<TaskModel<string>> tasks) =>
+                {
+                    if (string.IsNullOrWhiteSpace(task.TaskDescription))
+                    {
+                        return "La descripción no puede ser nula.";
+                    }
+
+                    if (task.DueDate <= DateTime.Now)
+                    {
+                        return "La fecha no puede ser antes de la fecha actual.";
+                    }
+
+                    var taskIdExist = tasks.Any(t => t.TaskId == entity.TaskId && t.TaskId != task.TaskId);
+
+                    if (taskIdExist)
+                    {
+                        return "El ID de tarea ya existe, intenta con otro.";
+                    }
+
+                    return null;
+                };
+
+               
                 task.TaskDescription = entity.TaskDescription;
                 task.DueDate = entity.DueDate;
                 task.TaskStatus = entity.TaskStatus;
                 task.AdditionalData = entity.AdditionalData;
 
-                // Guardar los cambios en la base de datos
                 _taskManagercontext.Task.Update(task);
                 await _taskManagercontext.SaveChangesAsync();
 
-                // Asignar los resultados de la actualización
-                operationResult.Message = "La tarea ha sido actualizada correctamente.";
+                Func<TaskEntity<string>, int> calculateRemainingDays = task => (task.DueDate - DateTime.Now).Days;
+
+                Action<TaskEntity<string>> taskNotification = task =>
+                {
+                    Console.WriteLine($"Tarea actualizada: {task.TaskDescription}, se vence en {calculateRemainingDays(task)} días.");
+                };
+
+                taskNotification(entity);
+
+                operationResult.Message = $"La tarea ha sido actualizada correctamente y se vence en {calculateRemainingDays(entity)} días.";
                 operationResult.Success = true;
                 operationResult.Result = new TaskModel<string>
                 {

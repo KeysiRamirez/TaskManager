@@ -122,8 +122,8 @@ namespace TaskManager.Data.Repository
                     return operationResult;
                 }
 
-                // Action para registrar log de éxito
-                Action<TaskEntity<string>> logTaskRetrieval = (retrievedTask) =>
+                // Trae la tarea solicitada
+                Action<TaskEntity<string>> TaskRetrieval = (retrievedTask) =>
                 {
                     _logger.LogInformation($"Tarea obtenida: {retrievedTask.TaskId} - {retrievedTask.TaskDescription}");
                 };
@@ -142,7 +142,7 @@ namespace TaskManager.Data.Repository
                 operationResult.Message = "Tarea obtenida correctamente.";
 
                 // Ejecutar log
-                logTaskRetrieval(task);
+                TaskRetrieval(task);
             }
             catch (Exception ex)
             {

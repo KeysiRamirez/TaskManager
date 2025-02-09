@@ -47,17 +47,17 @@ namespace TaskManager.Data.Repository
                         AdditionalData = db.AdditionalData
                     }).ToListAsync();
 
-                operationResult.Result = tasks;
+                // Implementando Factory
+                return OperationResult<List<TaskModel<string>>>.SuccessResult(tasks);
             }
 
             catch (Exception ex)
             {
-                operationResult.Success = false;
-                operationResult.Message = $"Ocurrió un error obteniendo las tareas. {ex.Message}";
-                _logger.LogError(operationResult.Message, ex.ToString());
-            }
+                string errorMessage = $"Ocurrió un error obteniendo las tareas. {ex.Message}";
+                _logger.LogError(errorMessage, ex.ToString());
 
-            return operationResult;
+                return OperationResult<List<TaskModel<string>>>.ErrorResult(errorMessage, ex);
+            }
         }
 
         public async Task<OperationResult<List<TaskModel<string>>>> GetAll(Expression<Func<TaskEntity<string>, bool>> filter)
@@ -77,17 +77,17 @@ namespace TaskManager.Data.Repository
                         AdditionalData = db.AdditionalData
                     }).ToListAsync();
 
-                operationResult.Result = tasks;
+                // Implementando Factory
+                return OperationResult<List<TaskModel<string>>>.SuccessResult(tasks);
             }
 
             catch (Exception ex)
             {
-                operationResult.Success = false;
-                operationResult.Message = $"Ocurrió un error obteniendo las tareas. {ex.Message}";
-                _logger.LogError(operationResult.Message, ex.ToString());
-            }
+                string errorMessage = $"Ocurrió un error obteniendo las tareas. {ex.Message}";
+                _logger.LogError(errorMessage, ex.ToString());
 
-            return operationResult;
+                return OperationResult<List<TaskModel<string>>>.ErrorResult(errorMessage, ex);
+            }
         }
 
         public async Task<OperationResult<TaskModel<string>>> GetEntityBy(int taskId)
@@ -105,6 +105,7 @@ namespace TaskManager.Data.Repository
 
                 // Ejecutar validación del ID
                 string validationMessage = validateTaskId(taskId);
+
                 if (validationMessage != null)
                 {
                     operationResult.Success = false;
@@ -117,9 +118,7 @@ namespace TaskManager.Data.Repository
 
                 if (task == null)
                 {
-                    operationResult.Success = false;
-                    operationResult.Message = "No se encontró una tarea con el ID especificado.";
-                    return operationResult;
+                    return OperationResult<TaskModel<string>>.ErrorResult("No se encontró una tarea con el ID especificado.");
                 }
 
                 // Trae la tarea solicitada
@@ -144,14 +143,13 @@ namespace TaskManager.Data.Repository
                 // Ejecutar log
                 TaskRetrieval(task);
             }
+
             catch (Exception ex)
             {
-                operationResult.Success = false;
-                operationResult.Message = $"Ocurrió un error obteniendo la tarea {taskId}. {ex.Message}";
-                _logger.LogError(operationResult.Message, ex);
+                string errorMessage = $"Ocurrió un error obteniendo la tarea {taskId}. {ex.Message}";
+                _logger.LogError(errorMessage, ex);
+                return OperationResult<TaskModel<string>>.ErrorResult(errorMessage, ex);
             }
-
-            return operationResult;
         }
 
 

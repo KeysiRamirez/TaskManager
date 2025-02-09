@@ -17,5 +17,27 @@ namespace TaskManager.Data.OperationResult
 
         public TData? Result { get; set; }
 
+        // Factory Method para éxito
+        public static OperationResult<TData> SuccessResult(TData result) =>
+            new OperationResult<TData> { Success = true, Result = result };
+
+        // Factory Method para error
+        public static OperationResult<TData> ErrorResult(string message, Exception? ex = null)
+        {
+            var operationResult = new OperationResult<TData>
+            {
+                Success = false,
+                Message = message
+            };
+
+            // Si hay una excepción, loguearla aquí o agregar más detalles
+            if (ex != null)
+            {
+                operationResult.Message += $" Error: {ex.Message}";
+            }
+
+            return operationResult;
+
+        }
     }
 }

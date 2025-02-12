@@ -150,13 +150,13 @@ namespace TaskManager.Data.Repository
                 _logger.LogError(errorMessage, ex);
                 return OperationResult<TaskModel<string>>.ErrorResult(errorMessage, ex);
             }
+
+            return operationResult;
         }
 
 
         public async Task<OperationResult<TaskModel<string>>> Remove(TaskEntity<string> entity)
         {
-            OperationResult<TaskModel<string>> operationResult = new OperationResult<TaskModel<string>>();
-
             try
             {
                 // Func para validar si la tarea existe
@@ -170,40 +170,32 @@ namespace TaskManager.Data.Repository
                 string validationMessage = await validateTaskExistence(entity);
                 if (validationMessage != null)
                 {
-                    operationResult.Success = false;
-                    operationResult.Message = validationMessage;
-                    return operationResult;
+                    return OperationResult<TaskModel<string>>.ErrorResult(validationMessage);
                 }
 
                 // Buscar la tarea en la base de datos
                 var taskToRemove = await _taskManagercontext.Task.FindAsync(entity.TaskId);
 
-                // Action para notificar la eliminación
-                Action<TaskEntity<string>> notifyTaskDeletion = (task) =>
-                {
-                    Console.WriteLine($"La tarea '{task.TaskDescription}' ha sido eliminada.");
-                };
-
                 // Eliminar la tarea
                 _taskManagercontext.Task.Remove(taskToRemove);
                 await _taskManagercontext.SaveChangesAsync();
 
-                // Ejecutar la notificación
-                notifyTaskDeletion(taskToRemove);
+                // Log de eliminación
+                _logger.LogInformation($"La tarea '{taskToRemove.TaskDescription}' ha sido eliminada.");
 
-                // Asignar mensaje de éxito
-                operationResult.Success = true;
-                operationResult.Message = "La tarea fue eliminada correctamente.";
+                var result = OperationResult<TaskModel<string>>.SuccessResult(new TaskModel<string>());
+                result.Message = "La tarea fue eliminada correcta";
+                return result;
             }
+
             catch (Exception ex)
             {
-                operationResult.Success = false;
-                operationResult.Message = $"Ocurrió un error eliminando la tarea. {ex.Message}";
-                _logger.LogError(operationResult.Message, ex);
+                string errorMessage = $"Ocurrió un error eliminando la tarea. {ex.Message}";
+                _logger.LogError(errorMessage, ex);
+                return OperationResult<TaskModel<string>>.ErrorResult(errorMessage, ex);
             }
-
-            return operationResult;
         }
+
 
         public async Task<OperationResult<TaskModel<string>>> Save(TaskEntity<string> entity)
         {

@@ -42,5 +42,9 @@ namespace TaskManager.Data.Interfaces
         {
             throw new NotImplementedException();
         }
+
+        // Métodos para manejar la cola de tareas
+        void EnqueueTask(Func<Task> task);
+        Task ProcessTasks(List<TaskModel<string>> tasks);
     }
 }

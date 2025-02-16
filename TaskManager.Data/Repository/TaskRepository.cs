@@ -4,7 +4,9 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Graph.Me.Planner.Plans.Item.Tasks;
 using Microsoft.Graph.Models;
 using Microsoft.VisualBasic;
+using System.Collections.Concurrent;
 using System.Linq;
+using System.Reactive.Subjects;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
 using TaskManager.Data.Context;
@@ -12,6 +14,8 @@ using TaskManager.Data.Entities;
 using TaskManager.Data.Interfaces;
 using TaskManager.Data.Models;
 using TaskManager.Data.OperationResult;
+using System.Reactive.Linq;
+using System.Reactive.Concurrency;
 
 namespace TaskManager.Data.Repository
 {
@@ -19,11 +23,17 @@ namespace TaskManager.Data.Repository
     {
         private readonly TaskManagerContext _taskManagercontext;
         private readonly ILogger<TaskRepository> _logger;
+        private readonly Subject<Func<Task>> _taskQueue = new Subject<Func<Task>>();
+        private readonly ConcurrentQueue<Func<Task>> _pendingTasks = new ConcurrentQueue<Func<Task>>();
 
         public TaskRepository(TaskManagerContext taskManagerContext, ILogger<TaskRepository> logger)
         {
             _taskManagercontext = taskManagerContext;
             _logger = logger;
+
+            _taskQueue
+                .ObserveOn(TaskPoolScheduler.Default)
+                .Subscribe(async task => await task());
         }
 
         // Validate null fields
@@ -60,35 +70,59 @@ namespace TaskManager.Data.Repository
             }
         }
 
+        public void EnqueueTask(Func<Task> task)
+        {
+            _pendingTasks.Enqueue(task);
+            _taskQueue.OnNext(async () =>
+            {
+                if (_pendingTasks.TryDequeue(out var nextTask))
+                {
+                    await nextTask();
+                }
+            });
+        }
+
+        public async Task ProcessTasks(List<TaskModel<string>> tasks)
+        {
+            foreach (var task in tasks)
+            {
+                _logger.LogInformation($"Procesando tarea: {task.TaskId}");
+                await Task.Delay(500); // Simulamos el procesamiento de la tarea
+            }
+        }
+
         public async Task<OperationResult<List<TaskModel<string>>>> GetAll(Expression<Func<TaskEntity<string>, bool>> filter)
         {
-            OperationResult<List<TaskModel<string>>> operationResult = new OperationResult<List<TaskModel<string>>>();
-
             try
             {
                 var tasks = await _taskManagercontext.Task
+                    .AsNoTracking() // Mejora el rendimiento si no modificas los datos
                     .Where(filter)
-                    .Select(db => new TaskModel<string>()
+                    .Select(db => new TaskModel<string>
                     {
                         TaskId = db.TaskId,
                         TaskDescription = db.TaskDescription,
                         DueDate = db.DueDate,
                         TaskStatus = db.TaskStatus,
                         AdditionalData = db.AdditionalData
-                    }).ToListAsync();
+                    })
+                    .ToListAsync();
 
-                // Implementando Factory
+                // Retorna un resultado exitoso
                 return OperationResult<List<TaskModel<string>>>.SuccessResult(tasks);
             }
-
             catch (Exception ex)
             {
-                string errorMessage = $"Ocurrió un error obteniendo las tareas. {ex.Message}";
-                _logger.LogError(errorMessage, ex.ToString());
+                string errorMessage = $"Ocurrió un error obteniendo las tareas: {ex.Message}";
 
+                // Mejor forma de loggear
+                _logger.LogError(ex, errorMessage);
+
+                // Retorna el error correctamente
                 return OperationResult<List<TaskModel<string>>>.ErrorResult(errorMessage, ex);
             }
         }
+
 
         public async Task<OperationResult<TaskModel<string>>> GetEntityBy(int taskId)
         {
@@ -257,7 +291,7 @@ namespace TaskManager.Data.Repository
                 // Asignar mensaje de éxito
                 operationResult.Success = true;
                 operationResult.Message = $"La tarea fue agregada correctamente y se vence en {calculateRemainingDays(entity)} días.";
-            
+
             }
 
             catch (Exception ex)
@@ -316,7 +350,7 @@ namespace TaskManager.Data.Repository
                     return null;
                 };
 
-               
+
                 task.TaskDescription = entity.TaskDescription;
                 task.DueDate = entity.DueDate;
                 task.TaskStatus = entity.TaskStatus;
@@ -354,6 +388,7 @@ namespace TaskManager.Data.Repository
 
             return operationResult;
         }
+
 
     }
 }

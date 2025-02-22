@@ -25,6 +25,8 @@ namespace TaskManager.Data.Repository
         private readonly ILogger<TaskRepository> _logger;
         private readonly Subject<Func<Task>> _taskQueue = new Subject<Func<Task>>();
         private readonly ConcurrentQueue<Func<Task>> _pendingTasks = new ConcurrentQueue<Func<Task>>();
+        // To memorize
+        private static readonly Dictionary<string, int> _daysRemainingCache = new();
 
         public TaskRepository(TaskManagerContext taskManagerContext, ILogger<TaskRepository> logger)
         {
@@ -87,7 +89,7 @@ namespace TaskManager.Data.Repository
             foreach (var task in tasks)
             {
                 _logger.LogInformation($"Procesando tarea: {task.TaskId}");
-                await Task.Delay(500); // Simulamos el procesamiento de la tarea
+                await Task.Delay(500);
             }
         }
 
@@ -96,7 +98,7 @@ namespace TaskManager.Data.Repository
             try
             {
                 var tasks = await _taskManagercontext.Task
-                    .AsNoTracking() // Mejora el rendimiento si no modificas los datos
+                    .AsNoTracking()
                     .Where(filter)
                     .Select(db => new TaskModel<string>
                     {
@@ -231,9 +233,11 @@ namespace TaskManager.Data.Repository
         }
 
 
+        
+
         public async Task<OperationResult<TaskModel<string>>> Save(TaskEntity<string> entity)
         {
-            OperationResult<TaskModel<string>> operationResult = new OperationResult<TaskModel<string>>();
+            OperationResult<TaskModel<string>> operationResult = new();
 
             try
             {
@@ -246,10 +250,8 @@ namespace TaskManager.Data.Repository
                     return operationResult;
                 }
 
-                // Validate if description or due date is null or before actual date
                 ValidateNullInputs validateDescriptionOrDueDates = (TaskEntity<string> task, List<TaskModel<string>> tasks) =>
                 {
-                    // validate if description is null
                     if (string.IsNullOrWhiteSpace(task.TaskDescription))
                     {
                         return "La descripcion no puede ser nula";
@@ -260,40 +262,40 @@ namespace TaskManager.Data.Repository
                         return "La fecha no puede ser antes de la fecha actual";
                     }
 
-                    var taskIdExist = tasks.Any(task => task.TaskId == entity.TaskId);
-
+                    var taskIdExist = tasks.Any(t => t.TaskId == entity.TaskId);
                     if (taskIdExist)
                     {
                         return "El ID de tarea ya existe, intenta con otro.";
                     }
 
-                    // If there's no any error
                     return null;
-
                 };
 
-                // Agregar la tarea al contexto
                 _taskManagercontext.Add(entity);
                 await _taskManagercontext.SaveChangesAsync();
 
-                // Func para calcular días restantes
-                Func<TaskEntity<string>, int> calculateRemainingDays = task => (task.DueDate - DateTime.Now).Days;
+                Func<TaskEntity<string>, int> calculateRemainingDays = task =>
+                {
+                    string cacheKey = task.TaskId.ToString();
+                    if (_daysRemainingCache.TryGetValue(cacheKey, out int cachedDays))
+                    {
+                        return cachedDays;
+                    }
+                    int days = (task.DueDate - DateTime.Now).Days;
+                    _daysRemainingCache[cacheKey] = days;
+                    return days;
+                };
 
-                // Action para notificar la creación de la tarea
                 Action<TaskEntity<string>> taskNotification = task =>
                 {
                     Console.WriteLine($"Tarea creada: {task.TaskDescription}, se vence en {calculateRemainingDays(task)} días.");
                 };
 
-                // Ejecutar la acción
                 taskNotification(entity);
 
-                // Asignar mensaje de éxito
                 operationResult.Success = true;
                 operationResult.Message = $"La tarea fue agregada correctamente y se vence en {calculateRemainingDays(entity)} días.";
-
             }
-
             catch (Exception ex)
             {
                 operationResult.Success = false;
@@ -304,9 +306,10 @@ namespace TaskManager.Data.Repository
             return operationResult;
         }
 
+
         public async Task<OperationResult<TaskModel<string>>> Update(TaskEntity<string> entity)
         {
-            OperationResult<TaskModel<string>> operationResult = new OperationResult<TaskModel<string>>();
+            OperationResult<TaskModel<string>> operationResult = new();
 
             try
             {
@@ -350,7 +353,6 @@ namespace TaskManager.Data.Repository
                     return null;
                 };
 
-
                 task.TaskDescription = entity.TaskDescription;
                 task.DueDate = entity.DueDate;
                 task.TaskStatus = entity.TaskStatus;
@@ -359,7 +361,17 @@ namespace TaskManager.Data.Repository
                 _taskManagercontext.Task.Update(task);
                 await _taskManagercontext.SaveChangesAsync();
 
-                Func<TaskEntity<string>, int> calculateRemainingDays = task => (task.DueDate - DateTime.Now).Days;
+                Func<TaskEntity<string>, int> calculateRemainingDays = task =>
+                {
+                    string cacheKey = task.TaskId.ToString();
+                    if (_daysRemainingCache.TryGetValue(cacheKey, out int cachedDays))
+                    {
+                        return cachedDays;
+                    }
+                    int days = (task.DueDate - DateTime.Now).Days;
+                    _daysRemainingCache[cacheKey] = days;
+                    return days;
+                };
 
                 Action<TaskEntity<string>> taskNotification = task =>
                 {
@@ -389,6 +401,5 @@ namespace TaskManager.Data.Repository
             return operationResult;
         }
 
-
-    }
+    }   
 }

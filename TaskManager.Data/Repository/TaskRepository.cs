@@ -163,7 +163,7 @@ namespace TaskManager.Data.Repository
                     _logger.LogInformation($"Tarea obtenida: {retrievedTask.TaskId} - {retrievedTask.TaskDescription}");
                 };
 
-                // Mapear la entidad al modelo
+                // Mapea la entidad al modelo
                 operationResult.Result = new TaskModel<string>
                 {
                     TaskId = task.TaskId,

@@ -1,4 +1,9 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
 using TaskManager.Data.Entities;
 using TaskManager.Data.Interfaces;
 using TaskManager.Data.Models;
@@ -11,164 +16,74 @@ namespace TaskManager.API.Controllers
     public class TaskController : ControllerBase
     {
         private readonly ITask _task;
-        public TaskController(ITask task)
+        private readonly IConfiguration _config;
+
+        public TaskController(ITask task, IConfiguration config)
         {
             _task = task;
+            _config = config;
         }
 
-        // GET: api/<TaskController>
+        [HttpPost("Login")]
+        public IActionResult Login([FromBody] UserModel user)
+        {
+            if (user.Username == "admin" && user.UserPassword == "password") 
+            {
+                var token = GenerateJwtToken(user.Username);
+                return Ok(new { token });
+            }
+            return Unauthorized("Credenciales incorrectas");
+        }
+
+        private string GenerateJwtToken(string username)
+        {
+            var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]));
+            var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
+            var claims = new[] { new Claim(ClaimTypes.Name, username) };
+
+            var token = new JwtSecurityToken(
+                _config["Jwt:Issuer"],
+                _config["Jwt:Issuer"],
+                claims,
+                expires: DateTime.UtcNow.AddHours(1),
+                signingCredentials: credentials);
+
+            return new JwtSecurityTokenHandler().WriteToken(token);
+        }
+
+        [Authorize]
         [HttpGet("GetTask")]
         public async Task<IActionResult> Get()
         {
             OperationResult<List<TaskModel<string>>> result = await _task.GetAll();
-
-            if (!result.Success)
-            {
-                return BadRequest(result);
-            }
-
+            if (!result.Success) return BadRequest(result);
             return Ok(result);
         }
 
-        // GET api/<TaskController>/5
+        [Authorize]
         [HttpGet("GetTaskById")]
         public async Task<IActionResult> Get(int taskId)
         {
-            
-            var result = new OperationResult<TaskModel<string>>();
-
             if (taskId <= 0)
-            {
-                result.Success = false;
-                result.Message = "La tarea no existe, id invalido. Debe de ser un numero mayor a 0";
-                return BadRequest(result);
-            }
+                return BadRequest(new { Success = false, Message = "ID inválido." });
 
-            result = await _task.GetEntityBy(taskId);
-
+            var result = await _task.GetEntityBy(taskId);
             if (!result.Success || result == null)
-            {
-                result.Success = false;
-                result.Message = "La tarea no fue encontrada.";
-                return NotFound(result);
-            }
-
-            if (!result.Success)
-            {
-                return BadRequest(result);
-            }
+                return NotFound(new { Success = false, Message = "Tarea no encontrada." });
 
             return Ok(result);
         }
 
-        // POST api/<TaskController>
+        [Authorize]
         [HttpPost("SaveTask")]
         public async Task<IActionResult> Post([FromBody] TaskEntity<string> entity)
         {
-            OperationResult<TaskModel<string>> result = null;
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+            if (entity.DueDate <= DateTime.Now) return BadRequest("Fecha inválida");
+            if (string.IsNullOrEmpty(entity.TaskDescription)) return BadRequest("Descripción vacía");
 
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
-
-            TaskEntity<string> newTask = new TaskEntity<string>()
-            {
-                TaskDescription = entity.TaskDescription,
-                DueDate = entity.DueDate,
-                TaskStatus = entity.TaskStatus,
-                AdditionalData = entity.AdditionalData
-            };
-
-            if (entity.DueDate <= DateTime.Now)
-            {
-                return BadRequest("La fecha de vencimiento no puede ser antes del dia actual");
-            }
-
-            if (string.IsNullOrEmpty(entity.TaskDescription))
-            {
-                return BadRequest("La descripcion no puede estar vacia");
-            }
-
-            result = await _task.Save(newTask);
-
-            if (!result.Success)
-            {
-                return BadRequest(result);
-            }
-
-            return Ok(result);
-        }
-
-        // PUT api/<TaskController>/5
-        [HttpPut("UpdateTask")]
-        public async Task<IActionResult> Put([FromBody] TaskEntity<string> entity)
-        {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
-
-            if (entity.TaskId <= 0)
-            {
-                return BadRequest("El ID de la tarea es inválido.");
-            }
-
-            if (entity.DueDate <= DateTime.Now)
-            {
-                return BadRequest("La fecha de vencimiento no puede ser antes del día actual.");
-            }
-
-            if (string.IsNullOrEmpty(entity.TaskDescription))
-            {
-                return BadRequest("La descripción no puede estar vacía.");
-            }
-
-            TaskEntity<string> newTask = new TaskEntity<string>()
-            {
-                TaskId = entity.TaskId,  // Asegurando que el ID se pase correctamente
-                TaskDescription = entity.TaskDescription,
-                DueDate = entity.DueDate,
-                TaskStatus = entity.TaskStatus,
-                AdditionalData = entity.AdditionalData
-            };
-
-            var result = await _task.Update(newTask);
-
-            if (!result.Success)
-            {
-                return BadRequest(result);
-            }
-
-            return Ok(result);
-        }
-
-
-        // DELETE api/<TaskController>/5
-        [HttpDelete("DeleteTask")]
-        public async Task<IActionResult> Delete([FromBody] TaskEntity<string> entity)
-        {
-            OperationResult<TaskModel<string>> result = null;
-
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
-            TaskEntity<string> newTask = new TaskEntity<string>()
-            {
-                TaskId = entity.TaskId,
-                TaskDescription = entity.TaskDescription,
-                DueDate = entity.DueDate,
-                TaskStatus = entity.TaskStatus,
-                AdditionalData = entity.AdditionalData
-            };
-
-            result = await _task.Remove(newTask);
-
-            if (!result.Success)
-            {
-                return BadRequest(result);
-            }
-
+            var result = await _task.Save(entity);
+            if (!result.Success) return BadRequest(result);
             return Ok(result);
         }
     }

@@ -30,7 +30,7 @@ namespace TaskManager.Data.OperationResult
                 Message = message
             };
 
-            // Si hay una excepción, loguearla aquí o agregar más detalles
+            // Si hay una excepción
             if (ex != null)
             {
                 operationResult.Message += $" Error: {ex.Message}";

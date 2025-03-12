@@ -1,13 +1,19 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using TaskManager.API.Hubs;
 using TaskManager.Data.Entities;
 using TaskManager.Data.Interfaces;
 using TaskManager.Data.Models;
 using TaskManager.Data.OperationResult;
+using TaskManager.API.Hubs;
+using Microsoft.AspNetCore.SignalR;
+
 
 namespace TaskManager.API.Controllers
 {
@@ -17,11 +23,13 @@ namespace TaskManager.API.Controllers
     {
         private readonly ITask _task;
         private readonly IConfiguration _config;
+        private readonly IHubContext<TaskHub> _hubContext;
 
-        public TaskController(ITask task, IConfiguration config)
+        public TaskController(ITask task, IConfiguration config, IHubContext<TaskHub> hubContext)
         {
             _task = task;
             _config = config;
+            _hubContext = hubContext;
         }
 
         [HttpPost("Login")]
@@ -84,6 +92,10 @@ namespace TaskManager.API.Controllers
 
             var result = await _task.Save(entity);
             if (!result.Success) return BadRequest(result);
+
+            // To send notification
+            await _hubContext.Clients.All.SendAsync("ReceiveTaskUpdate", "Nueva tarea creada: " + entity.TaskDescription);
+           
             return Ok(result);
         }
     }

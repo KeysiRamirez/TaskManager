@@ -1,4 +1,4 @@
-﻿namespace TaskManager.API.JwtSettingsModel
+﻿namespace TaskManager.API
 {
     public class JWTSettings
     {

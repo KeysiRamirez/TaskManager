@@ -16,4 +16,8 @@
     <ProjectReference Include="..\TaskManager.Data\TaskManager.Data.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="wwwroot\" />
+  </ItemGroup>
+
 </Project>

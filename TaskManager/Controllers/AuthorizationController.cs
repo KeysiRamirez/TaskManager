@@ -7,6 +7,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using TaskManager.API.Hubs;
+using TaskManager.API.JwtSettingsModel;
 using TaskManager.Data.Interfaces;
 using TaskManager.Data.Models;
 

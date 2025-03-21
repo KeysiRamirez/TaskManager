@@ -1,18 +1,11 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Text;
 using TaskManager.API.Hubs;
 using TaskManager.Data.Entities;
 using TaskManager.Data.Interfaces;
 using TaskManager.Data.Models;
 using TaskManager.Data.OperationResult;
-using TaskManager.API.Hubs;
-using Microsoft.AspNetCore.SignalR;
 
 
 namespace TaskManager.API.Controllers
@@ -65,7 +58,7 @@ namespace TaskManager.API.Controllers
             if (!result.Success) return BadRequest(result);
 
             // To send notification
-            await _hubContext.Clients.All.SendAsync("ReceiveTaskUpdate", "Nueva tarea creada: " + entity.TaskDescription);
+            await _hubContext.Clients.All.SendAsync("ReceiveTaskUpdate", $"Nueva tarea creada: {entity.TaskId}");
            
             return Ok(result);
         }
@@ -109,6 +102,9 @@ namespace TaskManager.API.Controllers
                 return BadRequest(result);
             }
 
+            // To send notification
+            await _hubContext.Clients.All.SendAsync("ReceiveTaskUpdate", $"La tarea {entity.TaskId} ha sido actualizada!");
+
             return Ok(result);
         }
 
@@ -136,6 +132,9 @@ namespace TaskManager.API.Controllers
             {
                 return BadRequest(result);
             }
+
+            // To send notification
+            await _hubContext.Clients.All.SendAsync("ReceiveTaskUpdate", $"La tarea {entity.TaskId} ha sido eliminada");
 
             return Ok(result);
         }

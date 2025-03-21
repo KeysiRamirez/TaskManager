@@ -24,41 +24,12 @@ namespace TaskManager.API.Controllers
         private readonly ITask _task;
         private readonly IConfiguration _config;
         private readonly IHubContext<TaskHub> _hubContext;
-
         public TaskController(ITask task, IConfiguration config, IHubContext<TaskHub> hubContext)
         {
             _task = task;
             _config = config;
             _hubContext = hubContext;
         }
-
-        [HttpPost("Login")]
-        public IActionResult Login([FromBody] UserModel user)
-        {
-            if (user.Username == "admin" && user.UserPassword == "password") 
-            {
-                var token = GenerateJwtToken(user.Username);
-                return Ok(new { token });
-            }
-            return Unauthorized("Credenciales incorrectas");
-        }
-
-        private string GenerateJwtToken(string username)
-        {
-            var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]));
-            var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
-            var claims = new[] { new Claim(ClaimTypes.Name, username) };
-
-            var token = new JwtSecurityToken(
-                _config["Jwt:Issuer"],
-                _config["Jwt:Issuer"],
-                claims,
-                expires: DateTime.UtcNow.AddHours(1),
-                signingCredentials: credentials);
-
-            return new JwtSecurityTokenHandler().WriteToken(token);
-        }
-
 
         [HttpGet("GetTask")]
         public async Task<IActionResult> Get() 

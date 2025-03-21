@@ -20,7 +20,8 @@ namespace TaskManager.Data.Entities
         public string Username { get; set; }
 
         [Required]
-        public string UserPassword { get; set; }
+        [Column("UserPassword")]
+        public string Password { get; set; }
 
         [Required]
         [StringLength(50)]

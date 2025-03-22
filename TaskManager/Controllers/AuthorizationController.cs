@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Graph.Models;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -19,6 +20,8 @@ namespace TaskManager.API.Controllers
 
         private readonly JWTSettings _jwtSettings;
         private readonly IConfiguration _config;
+
+        private static List<UserModel> _users = new List<UserModel>();
         public AuthorizationController(JWTSettings jWTSettings, IConfiguration config)
         {
             _jwtSettings = jWTSettings;
@@ -28,14 +31,14 @@ namespace TaskManager.API.Controllers
         [HttpPost("Login")]
         public IActionResult Login([FromBody] UserModel user)
         {
-            if (user.Username == "admin" && user.Password == "password")
+            var registeredUser = _users.SingleOrDefault(u => u.Username == user.Username && u.Password == user.Password);
+            if (registeredUser == null)
             {
-                var token = GenerateJwtToken(user.Username);
-                return Ok(new { token });
+                return Unauthorized("Credenciales incorrectas");
             }
-            return Unauthorized("Credenciales incorrectas");
+            var token = GenerateJwtToken(user.Username);
+            return Ok(new { token });
         }
-
         private string GenerateJwtToken(string username)
         {
             var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:SecretKey"]));
@@ -51,5 +54,24 @@ namespace TaskManager.API.Controllers
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
+
+        [HttpPost("Register")]
+        public IActionResult Register([FromBody] UserModel user)
+        {
+            // Verifica si el usuario ya existe
+            if (_users.Any(u => u.Username == user.Username))
+            {
+                return BadRequest("El usuario ya existe");
+            }
+
+            // Registra el nuevo usuario (en memoria)
+            _users.Add(user);
+
+            // Crea un token JWT para el nuevo usuario
+            var token = GenerateJwtToken(user.Username);
+
+            return Ok(new { token });
+        }
+
     }
 }
